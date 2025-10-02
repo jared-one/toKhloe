@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Happy birthday</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.8.49/build/Tone.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;1,400&family=Inter:wght@300;400;600&display=swap');
+
+        :root {
+            --cosmic-primary: #000428;
+            --cosmic-secondary: #004e92;
+            --cosmic-accent: #b794f6;
+            --cosmic-glow: #9f7aea;
+            --cosmic-text: #f0e6ff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            font-family: 'Crimson Pro', serif;
+            color: var(--cosmic-text);
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Canvas Layers with GPU optimization */
+        .canvas-layer {
+            position: fixed;
+            inset: 0;
+            will-change: transform;
+            transform: translateZ(0);
+        }
+
+        #backgroundCanvas { z-index: 1; }
+        #auroraCanvas { z-index: 2; mix-blend-mode: screen; }
+        #particleCanvas { z-index: 3; pointer-events: none; }
+        #constellationCanvas { z-index: 4; }
+        #pickingCanvas { 
+            z-index: -1; 
+            visibility: hidden; 
+            pointer-events: none;
+        }
+        #threeCanvas { z-index: 5; pointer-events: none; }
+
+        /* UI Overlay */
+        .ui-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .ui-overlay > * {
+            pointer-events: all;
+        }
+
+        .glass-panel {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Calibration UI */
+        .calibration-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: grid;
+            place-items: center;
+            z-index: 200;
+            transition: opacity 0.5s;
+        }
+
+        .calibration-meter {
+            width: 300px;
+            height: 200px;
+            position: relative;
+        }
+
+        .frequency-bar {
+            position: absolute;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(to top, #b794f6, #9f7aea);
+            transition: height 0.05s;
+        }
+
+        /* Performance Monitor */
+        .perf-monitor {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 1000;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Loading Screen */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #000;
+            display: grid;
+            place-items: center;
+            z-index: 9999;
+        }
+
+        .loading-progress {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .loading-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #b794f6, #9f7aea);
+            transition: width 0.3s;
+        }
+
+        /* Beautiful morphing text */
+        .morph-text {
+            font-size: 5rem;
+            background: linear-gradient(90deg, #b794f6, #9f7aea, #b794f6);
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+            filter: drop-shadow(0 0 30px rgba(183, 148, 246, 0.5));
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
+
+        /* Hint system */
+        .hint {
+            position: fixed;
+            background: rgba(183, 148, 246, 0.9);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 25px;
+            font-size: 14px;
+            opacity: 0;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        .hint.show {
+            opacity: 1;
+            transform: translateY(-10px);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-screen" id="loadingScreen">
+        <div>
+            <h1 class="text-4xl mb-8 text-purple-300">Initializing Universe...</h1>
+            <div class="loading-progress">
+                <div class="loading-bar" id="loadingBar" style="width: 0%"></div>
+            </div>
+            <p class="text-sm mt-4 opacity-70" id="loadingStatus">Loading audio worklets...</p>
+        </div>
+    </div>
+
+    <!-- Canvas Layers -->
+    <canvas id="backgroundCanvas" class="canvas-layer"></canvas>
+    <canvas id="auroraCanvas" class="canvas-layer"></canvas>
+    <canvas id="particleCanvas" class="canvas-layer"></canvas>
+    <canvas id="constellationCanvas" class="canvas-layer"></canvas>
+    <canvas id="pickingCanvas" class="canvas-layer"></canvas>
+    <div id="threeCanvas" class="canvas-layer"></div>
+
+    <!-- Hint -->
+    <div id="hint" class="hint"></div>
+
+    <!-- Calibration Overlay -->
+    <div class="calibration-overlay hidden" id="calibrationOverlay">
+        <div class="glass-panel text-center">
+            <h2 class="text-2xl mb-4">Microphone Calibration</h2>
+            <p class="mb-4">Please blow gently into your microphone</p>
+            <div class="calibration-meter" id="calibrationMeter"></div>
+            <div class="mt-4">
+                <p>Ambient Noise: <span id="noiseFloor">0</span></p>
+                <p>Peak Energy: <span id="peakEnergy">0</span></p>
+                <p>Threshold Set: <span id="threshold">0</span></p>
+            </div>
+            <button class="mt-6 px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition" id="calibrationDone">
+                Start Experience
+            </button>
+        </div>
+    </div>
+
+    <!-- UI Overlay -->
+    <div class="ui-overlay">
+        <div class="absolute top-8 left-8">
+            <h1 class="morph-text" id="morphTitle">Happy Birthday Khloe</h1>
+            <p class="text-xl mt-2 opacity-80">A universe crafted in code, just for you</p>
+        </div>
+
+        <div class="absolute bottom-8 left-8 glass-panel max-w-md">
+            <h3 class="text-lg mb-2">✨ Interactions</h3>
+            <p class="text-sm opacity-70">• Click anywhere to create constellations</p>
+            <p class="text-sm opacity-70">• Blow to extinguish candles</p>
+            <p class="text-sm opacity-70">• Move mouse for gravitational effects</p>
+            <p class="text-sm opacity-70">• Press SPACE for particle burst</p>
+            <p class="text-sm opacity-70">• Press P for performance stats</p>
+            <button class="mt-4 px-4 py-2 bg-purple-600/50 rounded-lg hover:bg-purple-600/70 transition" id="startMic">
+                🎤 Enable Blow Detection
+            </button>
+            <button class="ml-2 mt-4 px-4 py-2 bg-purple-600/50 rounded-lg hover:bg-purple-600/70 transition" id="clearStars">
+                🌟 Clear Constellation
+            </button>
+        </div>
+
+        <div class="absolute bottom-8 right-8">
+            <button class="px-6 py-3 bg-gradient-to-r from-purple-600 to-purple-800 rounded-full hover:scale-105 transition transform" id="playMusic">
+                ♪ Play Birthday Symphony
+            </button>
+        </div>
+
+        <div class="absolute top-8 right-8 text-right">
+            <p class="text-2xl opacity-80" id="starCounter">Stars: 0</p>
+            <p class="text-sm opacity-60">Click to create your constellation</p>
+        </div>
+    </div>
+
+    <!-- Performance Monitor -->
+    <div class="perf-monitor hidden" id="perfMonitor">
+        <div>FPS: <span id="fps">0</span></div>
+        <div>Particles: <span id="particleCount">0</span></div>
+        <div>Draw Calls: <span id="drawCalls">0</span></div>
+        <div>Memory: <span id="memory">0</span>MB</div>
+        <div>Audio: <span id="audioLevel">0</span></div>
+    </div>
+
+    <script>
+        'use strict';
+
+        // Worker code for particle rendering
+        const particleWorkerCode = `
+            let canvas, ctx, width, height, scale;
+            let particles = new Float32Array(10000 * 6);
+            let particleCount = 0;
+            
+            self.onmessage = (e) => {
+                if (e.data.canvas) {
+                    canvas = e.data.canvas;
+                    ctx = canvas.getContext('2d');
+                    width = e.data.width;
+                    height = e.data.height;
+                    scale = e.data.scale;
+                    ctx.scale(scale, scale);
+                    requestAnimationFrame(render);
+                } else if (e.data.type === 'update') {
+                    particles = e.data.particles;
+                    particleCount = e.data.count;
+                } else if (e.data.type === 'resize') {
+                    width = e.data.width;
+                    height = e.data.height;
+                    scale = e.data.scale;
+                    canvas.width = width * scale;
+                    canvas.height = height * scale;
+                    ctx.scale(scale, scale);
+                }
+            };
+            
+            function render() {
+                ctx.clearRect(0, 0, width, height);
+                
+                // Create gradient for particles
+                for(let i = 0; i < particleCount; i++) {
+                    const idx = i * 6;
+                    const x = particles[idx];
+                    const y = particles[idx + 1];
+                    const life = particles[idx + 4];
+                    const type = particles[idx + 5];
+                    
+                    ctx.globalAlpha = life;
+                    
+                    if (type === 0) {
+                        // Standard particle - cosmic purple
+                        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 5);
+                        gradient.addColorStop(0, 'rgba(183, 148, 246, 1)');
+                        gradient.addColorStop(1, 'rgba(183, 148, 246, 0)');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(x - 5, y - 5, 10, 10);
+                    } else if (type === 1) {
+                        // Burst particle - rainbow
+                        ctx.fillStyle = 'hsl(' + ((life * 360) % 360) + ', 80%, 60%)';
+                        ctx.beginPath();
+                        ctx.arc(x, y, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    } else {
+                        // Smoke particle
+                        const gradient = ctx.createRadialGradient(x, y, 0, x, y, 10);
+                        gradient.addColorStop(0, 'rgba(200, 200, 200, 0.3)');
+                        gradient.addColorStop(1, 'rgba(200, 200, 200, 0)');
+                        ctx.fillStyle = gradient;
+                        ctx.fillRect(x - 10, y - 10, 20, 20);
+                    }
+                }
+                
+                ctx.globalAlpha = 1;
+                requestAnimationFrame(render);
+            }
+        `;
+
+        // AudioWorklet for Blow Detection
+        const audioWorkletCode = `
+            class BlowDetectorProcessor extends AudioWorkletProcessor {
+                constructor() {
+                    super();
+                    this.frameSize = 512;
+                    this.buffer = new Float32Array(this.frameSize);
+                    this.bufferIndex = 0;
+                    
+                    this.noiseFloor = 0;
+                    this.threshold = 0;
+                    this.calibrating = false;
+                    this.calibrationSamples = [];
+                    
+                    this.cooldown = 0;
+                    this.detectionFrames = 0;
+                    
+                    this.port.onmessage = (e) => {
+                        if (e.data.type === 'calibrate') {
+                            this.calibrating = true;
+                            this.calibrationSamples = [];
+                        } else if (e.data.type === 'setThreshold') {
+                            this.noiseFloor = e.data.noiseFloor;
+                            this.threshold = e.data.threshold;
+                            this.calibrating = false;
+                        }
+                    };
+                }
+                
+                calculateRMS(buffer) {
+                    let sum = 0;
+                    for (let i = 0; i < buffer.length; i++) {
+                        sum += buffer[i] * buffer[i];
+                    }
+                    return Math.sqrt(sum / buffer.length);
+                }
+                
+                calculateLowFreqEnergy(buffer) {
+                    let energy = 0;
+                    for (let i = 0; i < Math.min(10, buffer.length); i++) {
+                        energy += Math.abs(buffer[i]);
+                    }
+                    return energy;
+                }
+                
+                process(inputs, outputs) {
+                    const input = inputs[0];
+                    if (!input || !input[0]) return true;
+                    
+                    const samples = input[0];
+                    
+                    for (let i = 0; i < samples.length; i++) {
+                        this.buffer[this.bufferIndex++] = samples[i];
+                        
+                        if (this.bufferIndex >= this.frameSize) {
+                            const rms = this.calculateRMS(this.buffer);
+                            const lowEnergy = this.calculateLowFreqEnergy(this.buffer);
+                            
+                            if (this.calibrating) {
+                                this.calibrationSamples.push({rms, lowEnergy});
+                                
+                                this.port.postMessage({
+                                    type: 'calibrationData',
+                                    data: {rms, lowEnergy}
+                                });
+                            } else if (this.threshold > 0) {
+                                const energy = rms * 1000 + lowEnergy * 100;
+                                
+                                if (this.cooldown > 0) {
+                                    this.cooldown--;
+                                } else if (energy > this.threshold) {
+                                    this.detectionFrames++;
+                                    
+                                    if (this.detectionFrames > 2) {
+                                        this.port.postMessage({
+                                            type: 'blowDetected',
+                                            energy: energy
+                                        });
+                                        this.cooldown = 50;
+                                        this.detectionFrames = 0;
+                                    }
+                                } else {
+                                    this.detectionFrames = 0;
+                                }
+                                
+                                this.port.postMessage({
+                                    type: 'levels',
+                                    data: {rms, energy, threshold: this.threshold}
+                                });
+                            }
+                            
+                            this.bufferIndex = 0;
+                            this.buffer.fill(0);
+                        }
+                    }
+                    
+                    return true;
+                }
+            }
+            
+            registerProcessor('blow-detector', BlowDetectorProcessor);
+        `;
+
+        // Perlin Noise implementation
+        class PerlinNoise {
+            constructor() {
+                this.perm = new Uint8Array(512);
+                this.gradP = new Array(512);
+                this.grad3 = [
+                    [1,1,0],[-1,1,0],[1,-1,0],[-1,-1,0],
+                    [1,0,1],[-1,0,1],[1,0,-1],[-1,0,-1],
+                    [0,1,1],[0,-1,1],[0,1,-1],[0,-1,-1]
+                ];
+                
+                for(let i = 0; i < 256; i++) {
+                    this.perm[i] = this.perm[i + 256] = Math.floor(Math.random() * 256);
+                }
+                for(let i = 0; i < 512; i++) {
+                    this.gradP[i] = this.grad3[this.perm[i] % 12];
+                }
+            }
+
+            dot(g, x, y, z) {
+                return g[0]*x + g[1]*y + g[2]*z;
+            }
+
+            fade(t) {
+                return t * t * t * (t * (t * 6 - 15) + 10);
+            }
+
+            lerp(a, b, t) {
+                return (1 - t) * a + t * b;
+            }
+
+            noise(x, y, z = 0) {
+                let X = Math.floor(x) & 255;
+                let Y = Math.floor(y) & 255;
+                let Z = Math.floor(z) & 255;
+                
+                x -= Math.floor(x);
+                y -= Math.floor(y);
+                z -= Math.floor(z);
+                
+                let u = this.fade(x);
+                let v = this.fade(y);
+                let w = this.fade(z);
+                
+                let A = this.perm[X] + Y;
+                let AA = this.perm[A] + Z;
+                let AB = this.perm[A + 1] + Z;
+                let B = this.perm[X + 1] + Y;
+                let BA = this.perm[B] + Z;
+                let BB = this.perm[B + 1] + Z;
+                
+                return this.lerp(
+                    this.lerp(
+                        this.lerp(
+                            this.dot(this.gradP[AA], x, y, z),
+                            this.dot(this.gradP[BA], x - 1, y, z),
+                            u
+                        ),
+                        this.lerp(
+                            this.dot(this.gradP[AB], x, y - 1, z),
+                            this.dot(this.gradP[BB], x - 1, y - 1, z),
+                            u
+                        ),
+                        v
+                    ),
+                    this.lerp(
+                        this.lerp(
+                            this.dot(this.gradP[AA + 1], x, y, z - 1),
+                            this.dot(this.gradP[BA + 1], x - 1, y, z - 1),
+                            u
+                        ),
+                        this.lerp(
+                            this.dot(this.gradP[AB + 1], x, y - 1, z - 1),
+                            this.dot(this.gradP[BB + 1], x - 1, y - 1, z - 1),
+                            u
+                        ),
+                        v
+                    ),
+                    w
+                );
+            }
+
+            octaveNoise(x, y, z, octaves = 4, persistence = 0.5) {
+                let total = 0;
+                let frequency = 1;
+                let amplitude = 1;
+                let maxValue = 0;
+                
+                for(let i = 0; i < octaves; i++) {
+                    total += this.noise(x * frequency, y * frequency, z * frequency) * amplitude;
+                    maxValue += amplitude;
+                    amplitude *= persistence;
+                    frequency *= 2;
+                }
+                
+                return total / maxValue;
+            }
+        }
+
+        // Main Application
+        class CosmicBirthdayPhD {
+            constructor() {
+                this.initState();
+                this.loadingProgress = 0;
+                this.init();
+            }
+
+            initState() {
+                this.state = {
+                    particles: new Float32Array(10000 * 6),
+                    particleCount: 0,
+                    constellationStars: [],
+                    mouseX: window.innerWidth / 2,
+                    mouseY: window.innerHeight / 2,
+                    audioContext: null,
+                    blowDetector: null,
+                    perlin: new PerlinNoise(),
+                    time: 0,
+                    fps: 0,
+                    lastFrameTime: performance.now(),
+                    drawCalls: 0
+                };
+
+                this.perfData = {
+                    frameTimes: new Float32Array(60),
+                    frameIndex: 0
+                };
+            }
+
+            async init() {
+                try {
+                    this.updateLoading(10, 'Initializing canvases...');
+                    await this.initCanvases();
+                    
+                    this.updateLoading(30, 'Loading Three.js scene...');
+                    await this.initThreeJS();
+                    
+                    this.updateLoading(40, 'Creating audio worklet...');
+                    await this.initAudioWorklet();
+                    
+                    this.updateLoading(50, 'Initializing particle system...');
+                    this.initParticleSystem();
+                    
+                    this.updateLoading(60, 'Setting up aurora renderer...');
+                    this.initAuroraRenderer();
+                    
+                    this.updateLoading(70, 'Creating constellation system...');
+                    this.initConstellationSystem();
+                    
+                    this.updateLoading(80, 'Loading generative music...');
+                    await this.initGenerativeMusic();
+                    
+                    this.updateLoading(90, 'Binding interactions...');
+                    this.bindEvents();
+                    
+                    this.updateLoading(100, 'Ready!');
+                    
+                    setTimeout(() => {
+                        document.getElementById('loadingScreen').classList.add('hidden');
+                        this.startAnimation();
+                        this.showHint('Click anywhere to create stars!', window.innerWidth / 2, window.innerHeight / 2);
+                    }, 500);
+                    
+                } catch (error) {
+                    console.error('Initialization failed:', error);
+                    document.getElementById('loadingStatus').textContent = 'Error: ' + error.message;
+                }
+            }
+
+            updateLoading(percent, status) {
+                document.getElementById('loadingBar').style.width = percent + '%';
+                document.getElementById('loadingStatus').textContent = status;
+            }
+
+            async initCanvases() {
+                this.canvases = {
+                    background: document.getElementById('backgroundCanvas'),
+                    aurora: document.getElementById('auroraCanvas'),
+                    particles: document.getElementById('particleCanvas'),
+                    constellation: document.getElementById('constellationCanvas'),
+                    picking: document.getElementById('pickingCanvas')
+                };
+
+                // Setup non-offscreen canvases first
+                this.contexts = {};
+                const setupCanvas = (name, canvas) => {
+                    canvas.width = window.innerWidth * window.devicePixelRatio;
+                    canvas.height = window.innerHeight * window.devicePixelRatio;
+                    canvas.style.width = window.innerWidth + 'px';
+                    canvas.style.height = window.innerHeight + 'px';
+                    
+                    const ctx = canvas.getContext('2d', {
+                        alpha: name !== 'background',
+                        desynchronized: true
+                    });
+                    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                    return ctx;
+                };
+
+                // Setup regular canvases
+                this.contexts.background = setupCanvas('background', this.canvases.background);
+                this.contexts.aurora = setupCanvas('aurora', this.canvases.aurora);
+                this.contexts.constellation = setupCanvas('constellation', this.canvases.constellation);
+                this.contexts.picking = setupCanvas('picking', this.canvases.picking);
+
+                // Try to setup OffscreenCanvas for particles
+                if (window.OffscreenCanvas && typeof this.canvases.particles.transferControlToOffscreen === 'function') {
+                    try {
+                        // Set canvas size before transfer
+                        this.canvases.particles.width = window.innerWidth * window.devicePixelRatio;
+                        this.canvases.particles.height = window.innerHeight * window.devicePixelRatio;
+                        this.canvases.particles.style.width = window.innerWidth + 'px';
+                        this.canvases.particles.style.height = window.innerHeight + 'px';
+                        
+                        // Transfer control to offscreen
+                        this.offscreenParticles = this.canvases.particles.transferControlToOffscreen();
+                        
+                        // Create worker
+                        this.particleWorker = new Worker(
+                            URL.createObjectURL(new Blob([particleWorkerCode], { type: 'application/javascript' }))
+                        );
+                        
+                        // Send canvas to worker
+                        this.particleWorker.postMessage({
+                            canvas: this.offscreenParticles,
+                            width: window.innerWidth,
+                            height: window.innerHeight,
+                            scale: window.devicePixelRatio
+                        }, [this.offscreenParticles]);
+                        
+                        console.log('OffscreenCanvas initialized successfully');
+                    } catch (e) {
+                        console.warn('OffscreenCanvas failed, using fallback:', e);
+                        this.contexts.particles = setupCanvas('particles', this.canvases.particles);
+                    }
+                } else {
+                    console.warn('OffscreenCanvas not supported, using fallback');
+                    this.contexts.particles = setupCanvas('particles', this.canvases.particles);
+                }
+            }
+
+            async initThreeJS() {
+                this.three = {
+                    scene: new THREE.Scene(),
+                    camera: new THREE.PerspectiveCamera(
+                        75, window.innerWidth / window.innerHeight, 0.1, 1000
+                    ),
+                    renderer: new THREE.WebGLRenderer({ 
+                        alpha: true, 
+                        antialias: true 
+                    })
+                };
+
+                this.three.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.three.renderer.setPixelRatio(window.devicePixelRatio);
+                document.getElementById('threeCanvas').appendChild(this.three.renderer.domElement);
+
+                this.three.camera.position.set(0, 2, 5);
+                this.three.camera.lookAt(0, 0, 0);
+
+                const ambientLight = new THREE.AmbientLight(0x404040);
+                this.three.scene.add(ambientLight);
+
+                const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+                pointLight.position.set(5, 5, 5);
+                this.three.scene.add(pointLight);
+
+                this.createCake();
+            }
+
+            createCake() {
+                const cakeGroup = new THREE.Group();
+
+                const layers = [
+                    { height: 0.3, radius: 1.5, color: 0x8B4513, y: 0 },
+                    { height: 0.3, radius: 1.3, color: 0xD2691E, y: 0.3 },
+                    { height: 0.3, radius: 1.1, color: 0xFFB6C1, y: 0.6 }
+                ];
+
+                layers.forEach(layer => {
+                    const geometry = new THREE.CylinderGeometry(
+                        layer.radius, layer.radius, layer.height, 32
+                    );
+                    const material = new THREE.MeshPhongMaterial({
+                        color: layer.color,
+                        shininess: 100
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.y = layer.y;
+                    cakeGroup.add(mesh);
+                });
+
+                this.candles = [];
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const x = Math.cos(angle) * 0.7;
+                    const z = Math.sin(angle) * 0.7;
+
+                    const candleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 16);
+                    const candleMaterial = new THREE.MeshPhongMaterial({ color: 0xFFF8DC });
+                    const candle = new THREE.Mesh(candleGeometry, candleMaterial);
+                    candle.position.set(x, 1.1, z);
+                    cakeGroup.add(candle);
+
+                    const flameGeometry = new THREE.BufferGeometry();
+                    const flameVertices = new Float32Array(30 * 3);
+                    const flameSizes = new Float32Array(30);
+                    
+                    for (let j = 0; j < 30; j++) {
+                        flameVertices[j * 3] = x + (Math.random() - 0.5) * 0.1;
+                        flameVertices[j * 3 + 1] = 1.3 + Math.random() * 0.2;
+                        flameVertices[j * 3 + 2] = z + (Math.random() - 0.5) * 0.1;
+                        flameSizes[j] = Math.random() * 10 + 5;
+                    }
+
+                    flameGeometry.setAttribute('position', 
+                        new THREE.BufferAttribute(flameVertices, 3));
+                    flameGeometry.setAttribute('size', 
+                        new THREE.BufferAttribute(flameSizes, 1));
+
+                    const flameMaterial = new THREE.PointsMaterial({
+                        size: 0.1,
+                        color: 0xFF4500,
+                        blending: THREE.AdditiveBlending,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+
+                    const flame = new THREE.Points(flameGeometry, flameMaterial);
+                    cakeGroup.add(flame);
+                    
+                    this.candles.push({ candle, flame, lit: true });
+                }
+
+                this.three.cakeGroup = cakeGroup;
+                this.three.scene.add(cakeGroup);
+            }
+
+            async initAudioWorklet() {
+                try {
+                    this.state.audioContext = new AudioContext();
+                    
+                    const blob = new Blob([audioWorkletCode], { type: 'application/javascript' });
+                    const workletUrl = URL.createObjectURL(blob);
+                    await this.state.audioContext.audioWorklet.addModule(workletUrl);
+                    
+                    this.state.blowDetector = null;
+                } catch (error) {
+                    console.error('AudioWorklet init failed:', error);
+                }
+            }
+
+            initParticleSystem() {
+                this.particlePool = {
+                    positions: new Float32Array(10000 * 2),
+                    velocities: new Float32Array(10000 * 2),
+                    life: new Float32Array(10000),
+                    types: new Uint8Array(10000),
+                    active: new Uint8Array(10000),
+                    count: 0,
+                    
+                    spawn(x, y, count = 10, type = 0) {
+                        const start = this.count;
+                        const end = Math.min(this.count + count, 10000);
+                        
+                        for (let i = start; i < end; i++) {
+                            this.positions[i * 2] = x;
+                            this.positions[i * 2 + 1] = y;
+                            this.velocities[i * 2] = (Math.random() - 0.5) * 10;
+                            this.velocities[i * 2 + 1] = (Math.random() - 0.5) * 10 - 5;
+                            this.life[i] = 1;
+                            this.types[i] = type;
+                            this.active[i] = 1;
+                        }
+                        
+                        this.count = end;
+                    },
+                    
+                    update(dt, mouseX, mouseY) {
+                        for (let i = 0; i < this.count; i++) {
+                            if (!this.active[i]) continue;
+                            
+                            const px = i * 2;
+                            const py = i * 2 + 1;
+                            
+                            this.positions[px] += this.velocities[px] * dt;
+                            this.positions[py] += this.velocities[py] * dt;
+                            
+                            this.velocities[py] += 300 * dt;
+                            
+                            const dx = mouseX - this.positions[px];
+                            const dy = mouseY - this.positions[py];
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (dist > 50 && dist < 300) {
+                                const force = 100 / (dist * dist);
+                                this.velocities[px] += dx * force * dt;
+                                this.velocities[py] += dy * force * dt;
+                            }
+                            
+                            this.life[i] -= dt;
+                            if (this.life[i] <= 0) {
+                                this.active[i] = 0;
+                            }
+                        }
+                        
+                        let writeIndex = 0;
+                        for (let i = 0; i < this.count; i++) {
+                            if (this.active[i]) {
+                                if (i !== writeIndex) {
+                                    this.positions[writeIndex * 2] = this.positions[i * 2];
+                                    this.positions[writeIndex * 2 + 1] = this.positions[i * 2 + 1];
+                                    this.velocities[writeIndex * 2] = this.velocities[i * 2];
+                                    this.velocities[writeIndex * 2 + 1] = this.velocities[i * 2 + 1];
+                                    this.life[writeIndex] = this.life[i];
+                                    this.types[writeIndex] = this.types[i];
+                                    this.active[writeIndex] = this.active[i];
+                                }
+                                writeIndex++;
+                            }
+                        }
+                        this.count = writeIndex;
+                    }
+                };
+            }
+
+            initAuroraRenderer() {
+                this.aurora = {
+                    flowField: new Float32Array(100 * 100 * 2),
+                    particles: new Float32Array(1000 * 4),
+                    particleCount: 1000,
+                    
+                    updateFlowField(time, perlin) {
+                        const scale = 0.01;
+                        for (let y = 0; y < 100; y++) {
+                            for (let x = 0; x < 100; x++) {
+                                const idx = (y * 100 + x) * 2;
+                                const noise = perlin.octaveNoise(x * scale, y * scale, time * 0.1, 4, 0.5);
+                                const angle = noise * Math.PI * 2;
+                                this.flowField[idx] = Math.cos(angle);
+                                this.flowField[idx + 1] = Math.sin(angle);
+                            }
+                        }
+                    },
+                    
+                    updateParticles(dt) {
+                        for (let i = 0; i < this.particleCount; i++) {
+                            const idx = i * 4;
+                            
+                            const fx = Math.floor(this.particles[idx] / window.innerWidth * 100);
+                            const fy = Math.floor(this.particles[idx + 1] / window.innerHeight * 100);
+                            const fieldIdx = Math.max(0, Math.min((fy * 100 + fx) * 2, this.flowField.length - 2));
+                            
+                            this.particles[idx] += this.flowField[fieldIdx] * dt * 50;
+                            this.particles[idx + 1] += this.flowField[fieldIdx + 1] * dt * 50;
+                            
+                            this.particles[idx + 2] += dt;
+                            if (this.particles[idx + 2] > 5 || 
+                                this.particles[idx] < 0 || this.particles[idx] > window.innerWidth ||
+                                this.particles[idx + 1] < 0 || this.particles[idx + 1] > window.innerHeight) {
+                                this.particles[idx] = Math.random() * window.innerWidth;
+                                this.particles[idx + 1] = Math.random() * window.innerHeight;
+                                this.particles[idx + 2] = 0;
+                                this.particles[idx + 3] = 240 + Math.random() * 60;
+                            }
+                        }
+                    }
+                };
+
+                for (let i = 0; i < this.aurora.particleCount; i++) {
+                    const idx = i * 4;
+                    this.aurora.particles[idx] = Math.random() * window.innerWidth;
+                    this.aurora.particles[idx + 1] = Math.random() * window.innerHeight;
+                    this.aurora.particles[idx + 2] = Math.random() * 5;
+                    this.aurora.particles[idx + 3] = 240 + Math.random() * 60;
+                }
+            }
+
+            initConstellationSystem() {
+                this.constellation = {
+                    stars: [],
+                    connections: [],
+                    maxDistance: 200,
+                    
+                    addStar(x, y) {
+                        const id = this.stars.length;
+                        const star = { id, x, y, connections: [], pulsePhase: Math.random() * Math.PI * 2 };
+                        
+                        this.stars.forEach(other => {
+                            const dist = Math.sqrt(
+                                Math.pow(other.x - x, 2) + 
+                                Math.pow(other.y - y, 2)
+                            );
+                            if (dist < this.maxDistance) {
+                                star.connections.push(other.id);
+                                other.connections.push(id);
+                                this.connections.push({ from: id, to: other.id, dist });
+                            }
+                        });
+                        
+                        this.stars.push(star);
+                        return star;
+                    },
+                    
+                    clear() {
+                        this.stars = [];
+                        this.connections = [];
+                    }
+                };
+            }
+
+            async initGenerativeMusic() {
+                this.music = {
+                    synth: null,
+                    reverb: null,
+                    notes: ['C4', 'E4', 'G4', 'B4', 'D5', 'F#5', 'A5'],
+                    pattern: null,
+                    
+                    async init() {
+                        this.synth = new Tone.PolySynth(Tone.Synth).toDestination();
+                        this.reverb = new Tone.Reverb(2).toDestination();
+                        this.synth.connect(this.reverb);
+                    },
+                    
+                    generateMelody() {
+                        const melody = [];
+                        for (let i = 0; i < 16; i++) {
+                            if (Math.random() > 0.3) {
+                                melody.push(this.notes[Math.floor(Math.random() * this.notes.length)]);
+                            } else {
+                                melody.push(null);
+                            }
+                        }
+                        return melody;
+                    },
+                    
+                    start() {
+                        if (!this.synth) return;
+                        
+                        const melody = this.generateMelody();
+                        
+                        this.pattern = new Tone.Pattern((time, note) => {
+                            if (note) {
+                                this.synth.triggerAttackRelease(note, '8n', time);
+                            }
+                        }, melody, 'up');
+                        
+                        this.pattern.interval = '8n';
+                        this.pattern.start(0);
+                        Tone.Transport.start();
+                    },
+                    
+                    modulate(x, y) {
+                        if (!this.synth) return;
+                        const vol = -30 + (y / window.innerHeight) * 20;
+                        this.synth.volume.value = vol;
+                    }
+                };
+            }
+
+            showHint(text, x, y) {
+                const hint = document.getElementById('hint');
+                hint.textContent = text;
+                hint.style.left = x + 'px';
+                hint.style.top = (y - 50) + 'px';
+                hint.classList.add('show');
+                
+                setTimeout(() => {
+                    hint.classList.remove('show');
+                }, 3000);
+            }
+
+            bindEvents() {
+                // Mouse tracking
+                document.addEventListener('mousemove', (e) => {
+                    this.state.mouseX = e.clientX;
+                    this.state.mouseY = e.clientY;
+                    
+                    if (this.music && this.music.synth) {
+                        this.music.modulate(e.clientX, e.clientY);
+                    }
+                });
+
+                // Click for constellation
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('button') && !e.target.closest('.glass-panel')) {
+                        const star = this.constellation.addStar(e.clientX, e.clientY);
+                        this.particlePool.spawn(e.clientX, e.clientY, 20);
+                        
+                        // Update counter
+                        document.getElementById('starCounter').textContent = `Stars: ${this.constellation.stars.length}`;
+                        
+                        // Create ripple effect
+                        this.createRipple(e.clientX, e.clientY);
+                    }
+                });
+
+                // Clear stars
+                document.getElementById('clearStars').addEventListener('click', () => {
+                    this.constellation.clear();
+                    document.getElementById('starCounter').textContent = 'Stars: 0';
+                    this.showHint('Constellation cleared!', window.innerWidth / 2, window.innerHeight / 2);
+                });
+
+                // Space for particle burst
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        this.particlePool.spawn(
+                            this.state.mouseX, 
+                            this.state.mouseY, 
+                            100, 
+                            1
+                        );
+                    } else if (e.key === 'p' || e.key === 'P') {
+                        document.getElementById('perfMonitor').classList.toggle('hidden');
+                    }
+                });
+
+                // Start music
+                document.getElementById('playMusic').addEventListener('click', async () => {
+                    if (!this.music.synth) {
+                        await this.music.init();
+                    }
+                    if (Tone.context.state !== 'running') {
+                        await Tone.start();
+                    }
+                    this.music.start();
+                    this.showHint('🎵 Music started!', this.state.mouseX, this.state.mouseY);
+                });
+
+                // Microphone
+                document.getElementById('startMic').addEventListener('click', async () => {
+                    await this.startBlowDetection();
+                });
+
+                // Resize
+                window.addEventListener('resize', () => {
+                    this.handleResize();
+                });
+
+                // Morphing title
+                const titles = [
+                    'Happy Birthday Ela',
+                    'Beautiful Soul',
+                    'Cosmic Wonder',
+                    'Universe\'s Gift',
+                    'Stellar Being',
+                    'Pure Magic'
+                ];
+                let titleIndex = 0;
+                setInterval(() => {
+                    titleIndex = (titleIndex + 1) % titles.length;
+                    document.getElementById('morphTitle').textContent = titles[titleIndex];
+                }, 3000);
+            }
+
+            createRipple(x, y) {
+                const ctx = this.contexts.constellation;
+                let radius = 0;
+                const maxRadius = 100;
+                let alpha = 1;
+                
+                const animate = () => {
+                    radius += 3;
+                    alpha = 1 - (radius / maxRadius);
+                    
+                    if (radius > maxRadius) return;
+                    
+                    ctx.save();
+                    ctx.strokeStyle = `rgba(183, 148, 246, ${alpha})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            }
+
+            async startBlowDetection() {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const source = this.state.audioContext.createMediaStreamSource(stream);
+                    
+                    this.state.blowDetector = new AudioWorkletNode(
+                        this.state.audioContext, 
+                        'blow-detector'
+                    );
+                    
+                    source.connect(this.state.blowDetector);
+                    
+                    document.getElementById('calibrationOverlay').classList.remove('hidden');
+                    
+                    this.state.blowDetector.port.postMessage({ type: 'calibrate' });
+                    
+                    let calibrationData = [];
+                    this.state.blowDetector.port.onmessage = (e) => {
+                        if (e.data.type === 'calibrationData') {
+                            calibrationData.push(e.data.data);
+                            
+                            const meter = document.getElementById('calibrationMeter');
+                            meter.innerHTML = '';
+                            const barCount = 30;
+                            for (let i = 0; i < barCount; i++) {
+                                const bar = document.createElement('div');
+                                bar.className = 'frequency-bar';
+                                bar.style.left = (i / barCount * 100) + '%';
+                                bar.style.height = Math.min(180, e.data.data.rms * 2000) + 'px';
+                                meter.appendChild(bar);
+                            }
+                            
+                            if (calibrationData.length > 100) {
+                                const avgRms = calibrationData.reduce((a, b) => a + b.rms, 0) / calibrationData.length;
+                                const maxRms = Math.max(...calibrationData.map(d => d.rms));
+                                const threshold = avgRms + (maxRms - avgRms) * 0.5;
+                                
+                                this.state.blowDetector.port.postMessage({
+                                    type: 'setThreshold',
+                                    noiseFloor: avgRms,
+                                    threshold: threshold * 1000
+                                });
+                                
+                                document.getElementById('noiseFloor').textContent = avgRms.toFixed(4);
+                                document.getElementById('peakEnergy').textContent = maxRms.toFixed(4);
+                                document.getElementById('threshold').textContent = (threshold * 1000).toFixed(2);
+                            }
+                        } else if (e.data.type === 'blowDetected') {
+                            this.onBlowDetected();
+                        } else if (e.data.type === 'levels') {
+                            document.getElementById('audioLevel').textContent = e.data.data.energy.toFixed(0);
+                        }
+                    };
+                    
+                    document.getElementById('calibrationDone').addEventListener('click', () => {
+                        document.getElementById('calibrationOverlay').classList.add('hidden');
+                        this.showHint('Blow detection ready! 🎤', window.innerWidth / 2, 100);
+                    });
+                    
+                } catch (error) {
+                    console.error('Mic access failed:', error);
+                    alert('Microphone access required for blow detection');
+                }
+            }
+
+            onBlowDetected() {
+                this.candles.forEach((candle, i) => {
+                    if (candle.lit) {
+                        setTimeout(() => {
+                            candle.lit = false;
+                            candle.flame.visible = false;
+                            
+                            const pos = candle.candle.position;
+                            const worldPos = new THREE.Vector3();
+                            candle.candle.getWorldPosition(worldPos);
+                            
+                            const screenPos = worldPos.project(this.three.camera);
+                            const x = (screenPos.x + 1) * window.innerWidth / 2;
+                            const y = (-screenPos.y + 1) * window.innerHeight / 2;
+                            
+                            this.particlePool.spawn(x, y, 30, 2);
+                        }, i * 200);
+                    }
+                });
+                
+                this.showHint('🎂 Happy Birthday! Make a wish!', window.innerWidth / 2, window.innerHeight / 2);
+            }
+
+            handleResize() {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                
+                Object.entries(this.contexts).forEach(([name, ctx]) => {
+                    if (ctx && ctx.canvas) {
+                        ctx.canvas.width = width * window.devicePixelRatio;
+                        ctx.canvas.height = height * window.devicePixelRatio;
+                        ctx.canvas.style.width = width + 'px';
+                        ctx.canvas.style.height = height + 'px';
+                        ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+                    }
+                });
+                
+                if (this.particleWorker) {
+                    this.particleWorker.postMessage({
+                        type: 'resize',
+                        width: width,
+                        height: height,
+                        scale: window.devicePixelRatio
+                    });
+                }
+                
+                if (this.three) {
+                    this.three.camera.aspect = width / height;
+                    this.three.camera.updateProjectionMatrix();
+                    this.three.renderer.setSize(width, height);
+                }
+            }
+
+            startAnimation() {
+                const animate = () => {
+                    const now = performance.now();
+                    const dt = Math.min((now - this.state.lastFrameTime) / 1000, 0.1);
+                    this.state.lastFrameTime = now;
+                    this.state.time += dt;
+                    
+                    this.perfData.frameTimes[this.perfData.frameIndex] = dt;
+                    this.perfData.frameIndex = (this.perfData.frameIndex + 1) % 60;
+                    if (this.perfData.frameIndex === 0) {
+                        const avgFrameTime = this.perfData.frameTimes.reduce((a, b) => a + b) / 60;
+                        this.state.fps = Math.round(1 / avgFrameTime);
+                        document.getElementById('fps').textContent = this.state.fps;
+                    }
+                    
+                    this.updateBackground(dt);
+                    this.updateAurora(dt);
+                    this.updateParticles(dt);
+                    this.updateConstellation(dt);
+                    this.update3D(dt);
+                    
+                    document.getElementById('particleCount').textContent = this.particlePool.count;
+                    document.getElementById('drawCalls').textContent = this.state.drawCalls;
+                    if (performance.memory) {
+                        document.getElementById('memory').textContent = 
+                            (performance.memory.usedJSHeapSize / 1048576).toFixed(2);
+                    }
+                    
+                    this.state.drawCalls = 0;
+                    
+                    requestAnimationFrame(animate);
+                };
+                
+                animate();
+            }
+
+            updateBackground(dt) {
+                const ctx = this.contexts.background;
+                
+                const gradient = ctx.createRadialGradient(
+                    this.state.mouseX, this.state.mouseY, 0,
+                    this.state.mouseX, this.state.mouseY, 1000
+                );
+                gradient.addColorStop(0, '#000428');
+                gradient.addColorStop(1, '#004e92');
+                
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+                this.state.drawCalls++;
+                
+                const starCount = 200;
+                for (let i = 0; i < starCount; i++) {
+                    const seed = i * 137.5;
+                    const x = ((seed * 9.1) % window.innerWidth);
+                    const y = ((seed * 7.3) % window.innerHeight);
+                    const size = (seed % 3) + 0.5;
+                    const brightness = 0.3 + (Math.sin(this.state.time * 2 + seed) + 1) * 0.35;
+                    
+                    const parallax = size / 3;
+                    const offsetX = (this.state.mouseX - window.innerWidth / 2) * parallax * 0.05;
+                    const offsetY = (this.state.mouseY - window.innerHeight / 2) * parallax * 0.05;
+                    
+                    ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                    ctx.beginPath();
+                    ctx.arc(x + offsetX, y + offsetY, size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                this.state.drawCalls++;
+            }
+
+            updateAurora(dt) {
+                this.aurora.updateFlowField(this.state.time, this.state.perlin);
+                this.aurora.updateParticles(dt);
+                
+                const ctx = this.contexts.aurora;
+                ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+                
+                ctx.globalCompositeOperation = 'screen';
+                
+                for (let i = 0; i < this.aurora.particleCount; i++) {
+                    const idx = i * 4;
+                    const x = this.aurora.particles[idx];
+                    const y = this.aurora.particles[idx + 1];
+                    const age = this.aurora.particles[idx + 2];
+                    const hue = this.aurora.particles[idx + 3];
+                    
+                    const alpha = Math.max(0, 1 - age / 5) * 0.3;
+                    
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 50);
+                    gradient.addColorStop(0, `hsla(${hue}, 70%, 60%, ${alpha})`);
+                    gradient.addColorStop(1, `hsla(${hue}, 70%, 60%, 0)`);
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(x - 50, y - 50, 100, 100);
+                }
+                
+                ctx.globalCompositeOperation = 'source-over';
+                this.state.drawCalls++;
+            }
+
+            updateParticles(dt) {
+                this.particlePool.update(dt, this.state.mouseX, this.state.mouseY);
+                
+                if (this.particleWorker) {
+                    const particleData = new Float32Array(this.particlePool.count * 6);
+                    for (let i = 0; i < this.particlePool.count; i++) {
+                        particleData[i * 6] = this.particlePool.positions[i * 2];
+                        particleData[i * 6 + 1] = this.particlePool.positions[i * 2 + 1];
+                        particleData[i * 6 + 2] = this.particlePool.velocities[i * 2];
+                        particleData[i * 6 + 3] = this.particlePool.velocities[i * 2 + 1];
+                        particleData[i * 6 + 4] = this.particlePool.life[i];
+                        particleData[i * 6 + 5] = this.particlePool.types[i];
+                    }
+                    
+                    this.particleWorker.postMessage({
+                        type: 'update',
+                        particles: particleData,
+                        count: this.particlePool.count
+                    });
+                } else if (this.contexts.particles) {
+                    const ctx = this.contexts.particles;
+                    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+                    
+                    for (let i = 0; i < this.particlePool.count; i++) {
+                        const x = this.particlePool.positions[i * 2];
+                        const y = this.particlePool.positions[i * 2 + 1];
+                        const life = this.particlePool.life[i];
+                        const type = this.particlePool.types[i];
+                        
+                        ctx.globalAlpha = life;
+                        
+                        if (type === 0) {
+                            ctx.fillStyle = `hsl(${270 + life * 60}, 70%, 60%)`;
+                        } else if (type === 1) {
+                            ctx.fillStyle = `hsl(${Math.random() * 360}, 80%, 60%)`;
+                        } else {
+                            ctx.fillStyle = `rgba(200, 200, 200, ${life * 0.3})`;
+                        }
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, type === 2 ? 5 : 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    ctx.globalAlpha = 1;
+                    this.state.drawCalls++;
+                }
+            }
+
+            updateConstellation(dt) {
+                const ctx = this.contexts.constellation;
+                ctx.save();
+                
+                this.constellation.connections.forEach((conn, i) => {
+                    const from = this.constellation.stars[conn.from];
+                    const to = this.constellation.stars[conn.to];
+                    
+                    if (!from || !to) return;
+                    
+                    const gradient = ctx.createLinearGradient(
+                        from.x, from.y, to.x, to.y
+                    );
+                    gradient.addColorStop(0, 'rgba(183, 148, 246, 0.1)');
+                    gradient.addColorStop(0.5, 'rgba(183, 148, 246, 0.3)');
+                    gradient.addColorStop(1, 'rgba(183, 148, 246, 0.1)');
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(from.x, from.y);
+                    ctx.lineTo(to.x, to.y);
+                    ctx.stroke();
+                    
+                    const t = (Math.sin(this.state.time * 2 + i) + 1) / 2;
+                    const pulseX = from.x + (to.x - from.x) * t;
+                    const pulseY = from.y + (to.y - from.y) * t;
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.beginPath();
+                    ctx.arc(pulseX, pulseY, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+                
+                this.constellation.stars.forEach((star, i) => {
+                    const pulse = Math.sin(this.state.time * 3 + star.pulsePhase) * 0.5 + 0.5;
+                    
+                    const glow = ctx.createRadialGradient(
+                        star.x, star.y, 0,
+                        star.x, star.y, 30 + pulse * 10
+                    );
+                    glow.addColorStop(0, `rgba(183, 148, 246, ${0.5 + pulse * 0.3})`);
+                    glow.addColorStop(1, 'transparent');
+                    
+                    ctx.fillStyle = glow;
+                    ctx.fillRect(star.x - 40, star.y - 40, 80, 80);
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = 'rgba(183, 148, 246, 0.8)';
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, 3 + pulse * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                });
+                
+                ctx.restore();
+                this.state.drawCalls++;
+            }
+
+            update3D(dt) {
+                if (this.three.cakeGroup) {
+                    this.three.cakeGroup.rotation.y += dt * 0.3;
+                }
+                
+                this.candles.forEach((candle, i) => {
+                    if (candle.lit && candle.flame) {
+                        const positions = candle.flame.geometry.attributes.position.array;
+                        for (let j = 0; j < 30; j++) {
+                            positions[j * 3 + 1] += Math.sin(this.state.time * 10 + j) * 0.001;
+                        }
+                        candle.flame.geometry.attributes.position.needsUpdate = true;
+                    }
+                });
+                
+                this.three.renderer.render(this.three.scene, this.three.camera);
+                this.state.drawCalls++;
+            }
+        }
+
+        // Initialize
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                window.cosmicBirthday = new CosmicBirthdayPhD();
+            });
+        } else {
+            window.cosmicBirthday = new CosmicBirthdayPhD();
+        }
+    </script>
+</body>
+</html>
