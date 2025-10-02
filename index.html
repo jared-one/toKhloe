@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Khloe's Celestial Birthday - A Celebration Written in Stars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;1,400&family=Inter:wght@300;400;600&display=swap');
+
+        :root {
+            --cosmic-primary: #000428;
+            --cosmic-secondary: #004e92;
+            --cosmic-accent: #b794f6;
+            --cosmic-glow: #9f7aea;
+            --cosmic-text: #f0e6ff;
+            --mouse-x: 50%;
+            --mouse-y: 50%;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(180deg, var(--cosmic-primary) 0%, var(--cosmic-secondary) 100%);
+            font-family: 'Crimson Pro', serif;
+            color: var(--cosmic-text);
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Simplified Typography */
+        h1 { font-size: clamp(2.5rem, 5vw, 4rem); }
+        h2 { font-size: clamp(1.8rem, 4vw, 2.5rem); }
+        p { font-size: clamp(1.1rem, 2vw, 1.25rem); }
+
+        /* Entry Portal - Simplified */
+        .portal-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(ellipse at center, #1b2735 0%, #090a0f 100%);
+            z-index: 9999;
+            display: grid;
+            place-items: center;
+            transition: opacity 1s ease-out;
+        }
+
+        .portal-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* Cosmic Shimmer - Simplified */
+        .cosmic-shimmer {
+            background: linear-gradient(90deg, var(--cosmic-text), var(--cosmic-accent), var(--cosmic-text));
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: shimmer 3s linear infinite;
+            filter: drop-shadow(0 0 20px rgba(183, 148, 246, 0.3));
+        }
+
+        @keyframes shimmer {
+            to { background-position: 200% center; }
+        }
+
+        /* Glass Card - Simplified */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Single Canvas for better performance */
+        #starCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Audio Visualizer - REAL */
+        .audio-viz {
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            height: 50px;
+            margin: 1.5rem 0;
+        }
+
+        .viz-bar {
+            width: 4px;
+            background: linear-gradient(to top, var(--cosmic-accent), var(--cosmic-glow));
+            border-radius: 2px;
+            transition: height 0.15s ease-out;
+            height: 10%;
+        }
+
+        /* Static animation when not playing */
+        .audio-viz:not(.playing) .viz-bar {
+            animation: gentle-pulse 2s ease-in-out infinite;
+            opacity: 0.3;
+        }
+
+        .audio-viz:not(.playing) .viz-bar:nth-child(1) { animation-delay: 0s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(2) { animation-delay: 0.1s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(3) { animation-delay: 0.2s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(4) { animation-delay: 0.3s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(5) { animation-delay: 0.4s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(6) { animation-delay: 0.5s; }
+        .audio-viz:not(.playing) .viz-bar:nth-child(7) { animation-delay: 0.6s; }
+
+        @keyframes gentle-pulse {
+            0%, 100% { height: 10%; }
+            50% { height: 30%; }
+        }
+
+        /* When playing, no CSS animation - JS controls it */
+        .audio-viz.playing .viz-bar {
+            animation: none;
+            opacity: 1;
+        }
+
+        /* Interactive Button Styles */
+        .magic-button {
+            position: relative;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2.5rem;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+            overflow: hidden;
+            border: none;
+            cursor: pointer;
+        }
+
+        .magic-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .magic-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .magic-button:hover::before {
+            left: 100%;
+        }
+
+        /* Game Button Special */
+        .game-portal {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 1000;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .game-portal-button {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 1.2rem 2.5rem;
+            border-radius: 50px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 10px 40px rgba(245, 87, 108, 0.4);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .game-portal-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(245, 87, 108, 0.6);
+        }
+
+        .sparkle {
+            animation: sparkle 2s linear infinite;
+        }
+
+        @keyframes sparkle {
+            0%, 100% { opacity: 0; transform: scale(0); }
+            50% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Letter Animation - Simplified */
+        .letter-content p {
+            line-height: 1.9;
+            margin-bottom: 1.5rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease;
+        }
+
+        .letter-content.visible p {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .letter-content.visible p:nth-child(1) { transition-delay: 0.1s; }
+        .letter-content.visible p:nth-child(2) { transition-delay: 0.2s; }
+        .letter-content.visible p:nth-child(3) { transition-delay: 0.3s; }
+        .letter-content.visible p:nth-child(4) { transition-delay: 0.4s; }
+        .letter-content.visible p:nth-child(5) { transition-delay: 0.5s; }
+        .letter-content.visible p:nth-child(6) { transition-delay: 0.6s; }
+        .letter-content.visible p:nth-child(7) { transition-delay: 0.7s; }
+
+        /* Birthday Card */
+        .birthday-card {
+            background: linear-gradient(135deg, rgba(183, 148, 246, 0.1), rgba(159, 122, 234, 0.1));
+            border-radius: 20px;
+            padding: 3rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .birthday-card::before {
+            content: '✨';
+            position: absolute;
+            font-size: 100px;
+            opacity: 0.1;
+            top: -20px;
+            right: -20px;
+            animation: float 4s ease-in-out infinite;
+        }
+
+        /* Countdown */
+        .countdown-item {
+            text-align: center;
+        }
+
+        .countdown-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .countdown-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-top: 0.25rem;
+        }
+
+        /* Music Status */
+        .music-status {
+            text-align: center;
+            padding: 0.5rem;
+            background: rgba(183, 148, 246, 0.1);
+            border-radius: 10px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
+
+        .music-status.playing {
+            background: rgba(102, 234, 126, 0.1);
+            color: #66ea7e;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .game-portal {
+                bottom: 20px;
+                right: 20px;
+                left: 20px;
+            }
+            
+            .game-portal-button {
+                justify-content: center;
+                width: 100%;
+            }
+        }
+
+        /* Success message */
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.3s ease;
+            z-index: 10000;
+        }
+
+        .success-message.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+    <!-- Single Canvas for Performance -->
+    <canvas id="starCanvas" aria-hidden="true"></canvas>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="success-message">
+        <span id="successText">✨ Magic Happening!</span>
+    </div>
+
+    <!-- Game Portal Button - Always Visible -->
+    <div class="game-portal">
+        <a href="index2.html" class="game-portal-button">
+            <span>🎮 Play Birthday Game!</span>
+            <span class="sparkle">✨</span>
+        </a>
+    </div>
+
+    <!-- Entry Portal -->
+    <div class="portal-overlay" id="portal">
+        <div class="text-center p-8 max-w-2xl">
+            <h1 class="cosmic-shimmer mb-6">A Celestial Birthday Journey</h1>
+            <p class="text-xl mb-8 opacity-80">For Khloe, on her special day</p>
+            <button id="enterBtn" class="magic-button">
+                Enter the Experience ✨
+            </button>
+            <p class="text-sm mt-6 opacity-60">Click to enter and start the birthday music</p>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="relative z-10 container mx-auto px-4 py-12 opacity-0 transition-opacity duration-1000" id="mainContent">
+        
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="cosmic-shimmer mb-4">Happy Birthday, Khloe</h1>
+            <p class="text-xl opacity-90">Today we celebrate the light you bring to this world</p>
+        </header>
+
+        <!-- Quick Actions -->
+        <div class="flex flex-wrap justify-center gap-4 mb-12">
+            <a href="index2.html" class="magic-button">
+                🎯 Make a Wish & Play
+            </a>
+            <button id="musicBtn" class="magic-button">
+                🎵 Toggle Birthday Music
+            </button>
+        </div>
+
+        <!-- Audio Player -->
+        <section class="max-w-md mx-auto mb-12 glass-card">
+            <h2 class="text-center text-xl mb-4 text-purple-300">♪ Your Birthday Melody ♪</h2>
+            <div class="audio-viz" id="audioViz">
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+                <div class="viz-bar"></div>
+            </div>
+            <!-- LOCAL MUSIC FIRST! -->
+            <audio id="bgMusic" loop preload="auto">
+                <source src="Pisces - Tony Ann (Piano Cover).mp3" type="audio/mpeg">
+                <!-- Fallback if local file doesn't exist -->
+                <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+                Your browser doesn't support audio
+            </audio>
+            <div class="text-center mt-4">
+                <button id="playPauseBtn" class="px-6 py-2 bg-purple-600/30 rounded-lg hover:bg-purple-600/50 transition-colors">
+                    Play / Pause
+                </button>
+            </div>
+            <div class="music-status" id="musicStatus">
+                🎵 Music Ready - Click play to start
+            </div>
+        </section>
+
+        <!-- Birthday Countdown -->
+        <section class="max-w-lg mx-auto mb-12 glass-card">
+            <h2 class="text-2xl mb-6 text-center text-purple-300">Time Until Next Year's Celebration</h2>
+            <div class="grid grid-cols-4 gap-4" id="countdown">
+                <div class="countdown-item">
+                    <div class="countdown-number" id="days">365</div>
+                    <div class="countdown-label">Days</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="hours">00</div>
+                    <div class="countdown-label">Hours</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="minutes">00</div>
+                    <div class="countdown-label">Minutes</div>
+                </div>
+                <div class="countdown-item">
+                    <div class="countdown-number" id="seconds">00</div>
+                    <div class="countdown-label">Seconds</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Interactive Birthday Card -->
+        <section class="max-w-2xl mx-auto mb-12 glass-card">
+            <h2 class="text-2xl mb-6 text-center text-purple-300">Your Personalized Birthday Card</h2>
+            <div class="birthday-card">
+                <h3 class="text-3xl cosmic-shimmer mb-4">Happy Birthday, Khloe!</h3>
+                <p id="cardMessage" class="text-lg opacity-80 mb-6">Click to generate a special message</p>
+                <div class="flex justify-center gap-4 flex-wrap">
+                    <button id="generateBtn" class="magic-button">
+                        ✨ Generate New Wish
+                    </button>
+                    <button id="shareBtn" class="magic-button">
+                        🎉 Share the Celebration
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Birthday Letter -->
+        <article class="max-w-4xl mx-auto mb-12 glass-card">
+            <h2 class="text-3xl mb-8 text-center cosmic-shimmer">To Khloe, On Your Birthday</h2>
+            <div class="letter-content" id="letterContent">
+                <p>
+                    <em>Khloe</em>, birthdays are strange markers in time—moments when the universe reminds us that another year has passed, another chapter begins. But some birthdays feel different. Some people feel different. And you've always been one of those people who makes everything a little more extraordinary.
+                </p>
+                <p>
+                    There's a rare quality you possess that can't quite be captured in words, though poets have tried for centuries to describe it. It's the way you navigate the world with authenticity and grace. The way you bring energy into spaces that desperately need it. The way you make the ordinary feel like something worth experiencing.
+                </p>
+                <p>
+                    Your presence has this gravitational pull—not demanding attention, but naturally drawing people in. It's in your laughter that echoes longer than the joke itself. It's in the way you see the world through a lens of curiosity rather than judgment. It's in your ability to be simultaneously grounded and boundless.
+                </p>
+                <p>
+                    What makes today special isn't just the cake or the candles or the celebration. It's the acknowledgment that the world became infinitely more interesting the day you entered it. Every person whose path has crossed yours carries a piece of your light forward—whether they realize it or not.
+                </p>
+                <p>
+                    As you step into this new year of life, may you find adventures that challenge you, moments that inspire you, and joy in the unexpected places. May you continue to be exactly who you are—unapologetically authentic, endlessly curious, and brighter than you probably realize.
+                </p>
+                <p>
+                    The universe has a funny way of celebrating the people who matter most. Today, every star, every wave, every breeze carries the same message: Happy Birthday. You are appreciated. You are valued. You make this world better simply by being in it.
+                </p>
+                <p>
+                    Here's to you, Khloe. Here's to another year of being phenomenal. 🌟
+                </p>
+            </div>
+        </article>
+
+        <!-- Dynamic Wishes -->
+        <section class="max-w-lg mx-auto mb-12 text-center">
+            <p class="text-2xl cosmic-shimmer" id="dynamicWish">Wishing you the absolute best today and always 💫</p>
+        </section>
+
+        <!-- Call to Action -->
+        <section class="max-w-2xl mx-auto mb-12 text-center glass-card">
+            <h2 class="text-2xl mb-4 cosmic-shimmer">Ready for Something Special?</h2>
+            <p class="mb-6 opacity-80">There's an interactive birthday experience waiting for you</p>
+            <a href="index2.html" class="magic-button inline-block">
+                🌟 Enter the Birthday Universe 🌟
+            </a>
+        </section>
+    </main>
+
+    <script>
+        'use strict';
+
+        // Simplified, reliable birthday experience
+        const BirthdayApp = {
+            // State
+            isPlaying: false,
+            stars: [],
+            audioContext: null,
+            analyser: null,
+            dataArray: null,
+            
+            // Initialize
+            init() {
+                this.setupCanvas();
+                this.setupAudio();
+                this.bindEvents();
+                this.startCountdown();
+                this.generateWishes();
+            },
+            
+            // Audio setup for real visualizer
+            setupAudio() {
+                const audio = document.getElementById('bgMusic');
+                
+                // Create audio context on user interaction
+                const initAudioContext = () => {
+                    if (!this.audioContext) {
+                        this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                        const source = this.audioContext.createMediaElementSource(audio);
+                        this.analyser = this.audioContext.createAnalyser();
+                        this.analyser.fftSize = 64;
+                        
+                        source.connect(this.analyser);
+                        this.analyser.connect(this.audioContext.destination);
+                        
+                        this.dataArray = new Uint8Array(this.analyser.frequencyBinCount);
+                    }
+                };
+                
+                // Store for later use
+                this.initAudioContext = initAudioContext;
+            },
+            
+            // Visualizer animation
+            animateVisualizer() {
+                if (!this.isPlaying) return;
+                
+                const bars = document.querySelectorAll('.viz-bar');
+                
+                if (this.analyser && this.dataArray) {
+                    this.analyser.getByteFrequencyData(this.dataArray);
+                    
+                    // Map frequency data to bars
+                    bars.forEach((bar, i) => {
+                        const value = this.dataArray[i * 2] || 0;
+                        const height = Math.max(10, (value / 255) * 100);
+                        bar.style.height = `${height}%`;
+                    });
+                } else {
+                    // Fallback animation if audio context fails
+                    const time = Date.now() * 0.001;
+                    bars.forEach((bar, i) => {
+                        const height = 30 + Math.sin(time * 2 + i * 0.5) * 20;
+                        bar.style.height = `${height}%`;
+                    });
+                }
+                
+                requestAnimationFrame(() => this.animateVisualizer());
+            },
+            
+            // Canvas setup - simplified for reliability
+            setupCanvas() {
+                const canvas = document.getElementById('starCanvas');
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size
+                const resize = () => {
+                    canvas.width = window.innerWidth;
+                    canvas.height = window.innerHeight;
+                };
+                resize();
+                window.addEventListener('resize', resize);
+                
+                // Create stars
+                for (let i = 0; i < 100; i++) {
+                    this.stars.push({
+                        x: Math.random() * canvas.width,
+                        y: Math.random() * canvas.height,
+                        size: Math.random() * 2 + 0.5,
+                        speed: Math.random() * 0.5 + 0.1,
+                        brightness: Math.random()
+                    });
+                }
+                
+                // Animation loop
+                const animate = () => {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw stars
+                    ctx.fillStyle = 'white';
+                    this.stars.forEach(star => {
+                        // Twinkling effect
+                        star.brightness += (Math.random() - 0.5) * 0.1;
+                        star.brightness = Math.max(0.3, Math.min(1, star.brightness));
+                        
+                        ctx.globalAlpha = star.brightness;
+                        ctx.beginPath();
+                        ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Move star
+                        star.y += star.speed;
+                        if (star.y > canvas.height) {
+                            star.y = 0;
+                            star.x = Math.random() * canvas.width;
+                        }
+                    });
+                    ctx.globalAlpha = 1;
+                    
+                    requestAnimationFrame(animate);
+                };
+                animate();
+            },
+            
+            // Event binding
+            bindEvents() {
+                const portal = document.getElementById('portal');
+                const mainContent = document.getElementById('mainContent');
+                const enterBtn = document.getElementById('enterBtn');
+                const musicBtn = document.getElementById('musicBtn');
+                const playPauseBtn = document.getElementById('playPauseBtn');
+                const bgMusic = document.getElementById('bgMusic');
+                const generateBtn = document.getElementById('generateBtn');
+                const shareBtn = document.getElementById('shareBtn');
+                const audioViz = document.getElementById('audioViz');
+                const musicStatus = document.getElementById('musicStatus');
+                
+                // Enter button - AUTOMATICALLY PLAY MUSIC
+                enterBtn.addEventListener('click', async () => {
+                    portal.classList.add('hidden');
+                    mainContent.style.opacity = '1';
+                    
+                    // Initialize audio context on user gesture
+                    this.initAudioContext();
+                    
+                    // Try to play music automatically
+                    try {
+                        bgMusic.volume = 0.5;
+                        await bgMusic.play();
+                        this.isPlaying = true;
+                        audioViz.classList.add('playing');
+                        musicStatus.textContent = '🎵 Music playing - Happy Birthday!';
+                        musicStatus.classList.add('playing');
+                        this.animateVisualizer();
+                        this.showSuccess('Welcome! Music is playing 🎵');
+                    } catch (error) {
+                        console.log('Autoplay prevented:', error);
+                        this.showSuccess('Welcome! Click the music button to start the birthday song 🎵');
+                        musicStatus.textContent = '⏸️ Music paused - Click play to start';
+                    }
+                    
+                    // Show letter with delay
+                    setTimeout(() => {
+                        document.getElementById('letterContent').classList.add('visible');
+                    }, 500);
+                });
+                
+                // Music controls
+                const toggleMusic = async () => {
+                    if (this.isPlaying) {
+                        bgMusic.pause();
+                        this.isPlaying = false;
+                        audioViz.classList.remove('playing');
+                        musicStatus.textContent = '⏸️ Music paused';
+                        musicStatus.classList.remove('playing');
+                    } else {
+                        try {
+                            // Initialize audio context if not done
+                            this.initAudioContext();
+                            
+                            bgMusic.volume = 0.5;
+                            await bgMusic.play();
+                            this.isPlaying = true;
+                            audioViz.classList.add('playing');
+                            musicStatus.textContent = '🎵 Music playing - Happy Birthday!';
+                            musicStatus.classList.add('playing');
+                            this.animateVisualizer();
+                            this.showSuccess('Music playing! 🎵');
+                        } catch (error) {
+                            console.error('Play failed:', error);
+                            this.showSuccess('Unable to play music. Please check your browser settings.');
+                        }
+                    }
+                };
+                
+                // Music button handlers
+                musicBtn.addEventListener('click', toggleMusic);
+                playPauseBtn.addEventListener('click', toggleMusic);
+                
+                // Handle music ended
+                bgMusic.addEventListener('ended', () => {
+                    // Loop should handle this, but just in case
+                    bgMusic.play();
+                });
+                
+                // Generate wish
+                generateBtn.addEventListener('click', () => {
+                    const messages = [
+                        "May your dreams reach as far as the stars ✨",
+                        "Another year of adventures and amazing moments 🌟",
+                        "Here's to growth, joy, and endless possibilities 💫",
+                        "May this year bring you everything you're hoping for 🌌",
+                        "Wishing you a year full of laughter and success 🌠",
+                        "Keep shining the way you do, Khloe 🎆",
+                        "A year older and even more awesome 🎉",
+                        "May your journey be filled with wonder and joy 🌈",
+                        "Here's to celebrating the amazing person you are 💝"
+                    ];
+                    
+                    const message = messages[Math.floor(Math.random() * messages.length)];
+                    document.getElementById('cardMessage').textContent = message;
+                    this.showSuccess('New wish generated! ✨');
+                });
+                
+                // Share button
+                shareBtn.addEventListener('click', () => {
+                    if (navigator.share) {
+                        navigator.share({
+                            title: 'Birthday Wishes for Khloe',
+                            text: 'Celebrating an amazing person today!',
+                            url: window.location.href
+                        }).catch(err => console.log('Share cancelled'));
+                    } else {
+                        // Fallback - copy to clipboard
+                        const text = `Check out this birthday celebration for Khloe! ${window.location.href}`;
+                        navigator.clipboard.writeText(text).then(() => {
+                            this.showSuccess('Link copied to clipboard! 📋');
+                        });
+                    }
+                });
+                
+                // Handle page visibility change (pause music when tab is hidden)
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden && this.isPlaying) {
+                        bgMusic.pause();
+                    } else if (!document.hidden && this.isPlaying) {
+                        bgMusic.play();
+                    }
+                });
+            },
+            
+            // Countdown timer
+            startCountdown() {
+                const updateCountdown = () => {
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    let birthday = new Date(currentYear, 8, 15); // September 15
+                    
+                    // If birthday passed this year, set to next year
+                    if (now > birthday) {
+                        birthday.setFullYear(currentYear + 1);
+                    }
+                    
+                    const diff = birthday - now;
+                    
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    
+                    document.getElementById('days').textContent = days;
+                    document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+                    document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+                    document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                };
+                
+                updateCountdown();
+                setInterval(updateCountdown, 1000);
+            },
+            
+            // Dynamic wishes
+            generateWishes() {
+                const wishes = [
+                    "Every moment today is a celebration of you, Khloe 🌟",
+                    "Here's to another year of being incredible 💫",
+                    "May this year bring you joy and adventure ✨",
+                    "Celebrating the awesome person you are 💝",
+                    "Wishing you the happiest of birthdays 🎉",
+                    "May your day be as amazing as you are 🌌",
+                    "Today we celebrate you and all you bring to the world 🌠",
+                    "Another year of being phenomenal 🌈"
+                ];
+                
+                let index = 0;
+                setInterval(() => {
+                    const wishEl = document.getElementById('dynamicWish');
+                    wishEl.style.opacity = '0';
+                    
+                    setTimeout(() => {
+                        index = (index + 1) % wishes.length;
+                        wishEl.textContent = wishes[index];
+                        wishEl.style.opacity = '1';
+                    }, 500);
+                }, 5000);
+            },
+            
+            // Show success message
+            showSuccess(text) {
+                const msg = document.getElementById('successMessage');
+                const msgText = document.getElementById('successText');
+                
+                msgText.textContent = text;
+                msg.classList.add('show');
+                
+                setTimeout(() => {
+                    msg.classList.remove('show');
+                }, 3000);
+            }
+        };
+        
+        // Start when ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => BirthdayApp.init());
+        } else {
+            BirthdayApp.init();
+        }
+    </script>
+</body>
+</html>
